@@ -245,3 +245,6 @@ def validate_user(mapper, connection, target: User) -> None:
     # Vérification que les documents de vérification sont cohérents
     if target.verification_status == 'verified' and not target.verification_documents:
         raise ValueError("Un utilisateur vérifié doit avoir des documents de vérification")
+
+# Ajouter ce champ
+hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
