@@ -112,4 +112,68 @@ class Offer(Base):
     
     # Validations
     @validates('quantity', 'proposed_price', 'counter_offer_price', 'counter_offer_quantity')
-    def validate_positive_values(self, key: str, value: Decimal
+    def validate_positive_values(self, key: str, value: Decimal) -> Decimal:
+        """Valide que les valeurs numériques sont positives."""
+        if value is not None and not validate_positive_decimal(value):
+            raise ValueError(f"{key} doit être positif: {value}")
+        return value
+    
+    @validates('quantity')
+    def validate_quantity_available(self, key: str, value: Decimal) -> Decimal:
+        """Valide que la quantité demandée ne dépasse pas la disponibilité."""
+        # Cette validation sera faite au niveau du service, car dépend du listing
+        return value
+    
+    # Propriétés hybrides
+    @hybrid_property
+    def is_counter_offer(self) -> bool:
+        """Vérifie si l'offre est une contre-offre."""
+        return self.status == 'counter_offer'
+    
+    @hybrid_property
+    def is_active(self) -> bool:
+        """Vérifie si l'offre est toujours active."""
+        return self.status in ['pending', 'counter_offer']
+    
+    # Méthodes métier
+    def accept(self) -> None:
+        """Accepte l'offre."""
+        if self.status not in ['pending', 'counter_offer']:
+            raise ValueError(f"Impossible d'accepter une offre en statut {self.status}")
+        self.status = 'accepted'
+    
+    def refuse(self) -> None:
+        """Refuse l'offre."""
+        if self.status not in ['pending', 'counter_offer']:
+            raise ValueError(f"Impossible de refuser une offre en statut {self.status}")
+        self.status = 'refused'
+    
+    def create_counter_offer(self, price: Decimal, quantity: Decimal) -> None:
+        """
+        Crée une contre-offre.
+        
+        Args:
+            price: Nouveau prix proposé
+            quantity: Nouvelle quantité proposée
+            
+        Raises:
+            ValueError: Si les paramètres sont invalides
+        """
+        if not validate_positive_decimal(price):
+            raise ValueError(f"Prix de contre-offre invalide: {price}")
+        if not validate_positive_decimal(quantity):
+            raise ValueError(f"Quantité de contre-offre invalide: {quantity}")
+        
+        self.status = 'counter_offer'
+        self.counter_offer_price = price
+        self.counter_offer_quantity = quantity
+        self.updated_at = datetime.utcnow()
+
+# Event listener pour expiration automatique
+@event.listens_for(Offer, 'before_insert')
+@event.listens_for(Offer, 'before_update')
+def set_expiration(mapper, connection, target: Offer) -> None:
+    """Définit une date d'expiration automatique si non définie."""
+    if target.expires_at is None:
+        from datetime import timedelta
+        target.expires_at = datetime.utcnow() + timedelta(days=7)
