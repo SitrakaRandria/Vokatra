@@ -74,3 +74,7 @@ try:
 except ValidationError as e:
     logger.critical(f"Erreur de configuration: {e}")
     raise RuntimeError(f"Configuration invalide: {e}")
+# Ajouter dans Settings
+FCM_SERVER_KEY: Optional[str] = Field(None, description="Clé serveur FCM")
+FCM_PROJECT_ID: Optional[str] = Field(None, description="ID du projet Firebase")
+FCM_SENDER_ID: Optional[str] = Field(None, description="Sender ID Firebase")
