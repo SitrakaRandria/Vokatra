@@ -2,8 +2,8 @@
 Configuration centralisée avec validation Pydantic.
 """
 from typing import Optional, List
-from pydantic_settings import BaseSettings
-from pydantic import Field, validator, ValidationError
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, field_validator, ValidationError
 import logging
 
 logger = logging.getLogger(__name__)
@@ -45,28 +45,34 @@ class Settings(BaseSettings):
     SUPPORTED_LANGUAGES: List[str] = Field(default=["fr", "mg"], description="Langues supportées")
     DEFAULT_LANGUAGE: str = Field(default="fr", description="Langue par défaut")
     
-    @validator('DATABASE_URL')
+    @field_validator('DATABASE_URL')
+    @classmethod
     def validate_database_url(cls, v: str) -> str:
         """Valide que l'URL de base de données est correcte."""
-        if not v.startswith(('postgresql://', 'postgresql+asyncpg://')):
-            raise ValueError("DATABASE_URL doit être une URL PostgreSQL valide (postgresql:// ou postgresql+asyncpg://)")
-        if 'postgresql+asyncpg://' not in v and not v.startswith('postgresql://'):
+        if v.startswith('postgresql://') and 'asyncpg' not in v:
             # Ajoute automatiquement asyncpg si manquant
             v = v.replace('postgresql://', 'postgresql+asyncpg://', 1)
+        if not v.startswith(('postgresql+asyncpg://', 'sqlite+aiosqlite://')):
+            raise ValueError(
+                "DATABASE_URL doit être une URL PostgreSQL valide "
+                "(postgresql:// ou postgresql+asyncpg://)"
+            )
         return v
-    
-    @validator('JWT_SECRET_KEY')
+
+    @field_validator('JWT_SECRET_KEY')
+    @classmethod
     def validate_jwt_secret(cls, v: str) -> str:
         """Valide que la clé JWT est suffisamment sécurisée."""
         if len(v) < 32:
             raise ValueError("JWT_SECRET_KEY doit faire au moins 32 caractères")
         return v
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = True
-        extra = "ignore"  # Ignorer les variables inattendues
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=True,
+        extra="ignore",  # Ignorer les variables inattendues
+    )
 
 # Instanciation des settings avec gestion d'erreur
 try:

@@ -4,7 +4,7 @@ Schémas Pydantic pour le modèle Offer (négociation).
 from typing import Optional
 from datetime import datetime
 from decimal import Decimal
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict
 
 class OfferBase(BaseModel):
     """Schéma de base pour une offre."""

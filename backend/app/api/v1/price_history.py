@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from datetime import datetime
 from typing import List, Optional
 from app.core.database import get_db_session
 from app.models.price_history import PriceHistory
+from app.utils.time import utcnow
 from app.schemas.price_history import PriceHistoryResponse
 
 router = APIRouter(prefix="/prices", tags=["prices"])
@@ -21,7 +21,7 @@ async def get_price_history(
         query = query.where(PriceHistory.product == product)
     if region:
         query = query.where(PriceHistory.region == region)
-    cutoff = datetime.utcnow().replace(day=1)
+    cutoff = utcnow().replace(day=1)
     from dateutil.relativedelta import relativedelta
     cutoff = cutoff - relativedelta(months=months)
     query = query.where(PriceHistory.month_year >= cutoff)

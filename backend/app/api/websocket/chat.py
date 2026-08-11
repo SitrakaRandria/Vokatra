@@ -1,19 +1,20 @@
 """
 Endpoint WebSocket pour le chat en temps réel.
 """
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, status
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import json
 import logging
 
+from app.utils.time import utcnow
 from app.core.database import get_db_session
 from app.core.auth import verify_token
 from app.models.user import User
 from app.models.conversation import Conversation
 from app.models.message import Message
 from app.websocket.connection_manager import manager
-from app.schemas.message import MessageCreate, MessageResponse  # À créer
+
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -109,7 +110,7 @@ async def handle_send_message(db_session: AsyncSession, sender_id: int, data: di
         read=False
     )
     db_session.add(new_message)
-    conversation.updated_at = datetime.utcnow()
+    conversation.updated_at = utcnow()
     await db_session.commit()
     await db_session.refresh(new_message)
 

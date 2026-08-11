@@ -5,8 +5,9 @@ from typing import Optional, List
 from datetime import datetime
 from decimal import Decimal
 from pydantic import BaseModel, Field, field_validator, ConfigDict
-from pydantic.types import StringConstraints
 from typing_extensions import Annotated
+
+from app.utils.time import utcnow
 
 # Type pour les quantités positives
 PositiveDecimal = Annotated[
@@ -30,7 +31,7 @@ class ListingBase(BaseModel):
     price_mode: str = Field(default="without_delivery", pattern="^(with_delivery|without_delivery)$")
     region: str = Field(..., min_length=2, max_length=100)
     location_detail: Optional[str] = Field(None, max_length=200)
-    availability_date: datetime = Field(default_factory=datetime.utcnow)
+    availability_date: datetime = Field(default_factory=utcnow)
     
     @field_validator('total_quantity')
     @classmethod

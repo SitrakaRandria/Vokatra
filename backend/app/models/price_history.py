@@ -3,6 +3,7 @@ from decimal import Decimal
 from sqlalchemy import Integer, String, Numeric, DateTime, Index, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from app.core.database import Base
+from app.utils.time import utcnow
 
 class PriceHistory(Base):
     __tablename__ = "price_history"
@@ -20,5 +21,5 @@ class PriceHistory(Base):
     max_price: Mapped[Decimal] = mapped_column(Numeric(15, 2), nullable=False)
     transaction_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     month_year: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)

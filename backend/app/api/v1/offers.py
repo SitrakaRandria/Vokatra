@@ -4,7 +4,6 @@ Endpoints pour la gestion des offres et contre‑offres.
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from datetime import datetime
 import logging
 
 from app.core.database import get_db_session
@@ -12,6 +11,7 @@ from app.core.auth import get_current_user
 from app.models.user import User
 from app.models.listing import Listing
 from app.models.offer import Offer
+from app.models.order import Order
 from app.models.conversation import Conversation
 from app.schemas.offer import OfferCreate, OfferResponse, CounterOfferCreate
 
@@ -112,14 +112,14 @@ async def accept_offer(
         if not offer:
             raise HTTPException(status_code=404, detail="Offre non trouvée")
 
-        # Vérifier que l'offre est en attente
-        if offer.status != "pending":
-            raise HTTPException(status_code=409, detail="Cette offre n'est plus en attente")
-
         # Vérifier que l'utilisateur est le vendeur de l'annonce
         listing = await session.get(Listing, offer.listing_id)
         if listing.user_id != current_user.id:
             raise HTTPException(status_code=403, detail="Vous n'êtes pas autorisé à accepter cette offre")
+
+        # Vérifier que l'offre est en attente
+        if offer.status != "pending":
+            raise HTTPException(status_code=409, detail="Cette offre n'est plus en attente")
 
         # Mettre à jour l'offre
         offer.status = "accepted"
@@ -132,9 +132,22 @@ async def accept_offer(
         elif listing.available_quantity < listing.total_quantity:
             listing.status = "partially_sold"
 
-        # Créer une commande (Order) - on garde le modèle Order à implémenter
-        # Pour le moment on le saute, on loggue
-        logger.info(f"Offre {offer_id} acceptée, commande à créer prochainement")
+        # Créer la commande associée à l'offre acceptée
+        new_order = Order(
+            listing_id=listing.id,
+            buyer_id=offer.buyer_id,
+            seller_id=listing.user_id,
+            quantity=offer.quantity,
+            price_final=offer.proposed_price,
+            status="pending"
+        )
+        session.add(new_order)
+        await session.flush()
+
+        logger.info(
+            f"Offre {offer_id} acceptée, commande {new_order.id} créée "
+            f"(vendeur {listing.user_id}, acheteur {offer.buyer_id})"
+        )
 
         await session.commit()
         await session.refresh(offer)
@@ -166,7 +179,7 @@ async def refuse_offer(
         if current_user.id not in (offer.buyer_id, listing.user_id):
             raise HTTPException(status_code=403, detail="Vous n'êtes pas autorisé à refuser cette offre")
 
-        if offer.status != "pending":
+        if offer.status not in ("pending", "counter_offer"):
             raise HTTPException(status_code=409, detail="Cette offre n'est plus en attente")
 
         offer.status = "refused"
@@ -196,12 +209,12 @@ async def counter_offer(
         if not offer:
             raise HTTPException(status_code=404, detail="Offre non trouvée")
 
-        if offer.status != "pending":
-            raise HTTPException(status_code=409, detail="Cette offre n'est plus en attente")
-
         listing = await session.get(Listing, offer.listing_id)
         if listing.user_id != current_user.id:
             raise HTTPException(status_code=403, detail="Seul le vendeur peut faire une contre‑offre")
+
+        if offer.status != "pending":
+            raise HTTPException(status_code=409, detail="Cette offre n'est plus en attente")
 
         # Vérifier que la contre‑offre est valide
         if counter_data.counter_offer_quantity > listing.available_quantity:

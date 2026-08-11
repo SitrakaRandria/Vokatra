@@ -6,12 +6,14 @@ from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import (
-    Integer, DateTime, Numeric, Enum, CheckConstraint, Index, event
+    Integer, String, DateTime, Numeric, Enum, CheckConstraint, Index, ForeignKey, event
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
+from sqlalchemy.ext.hybrid import hybrid_property
 
 from app.core.database import Base
 from app.utils.validators import validate_positive_decimal
+from app.utils.time import utcnow
 
 if TYPE_CHECKING:
     from app.models.user import User
@@ -31,8 +33,12 @@ class Offer(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     
     # Références
-    listing_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
-    buyer_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    listing_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("listings.id"), nullable=False, index=True
+    )
+    buyer_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False, index=True
+    )
     
     # Détails de l'offre
     quantity: Mapped[Decimal] = mapped_column(
@@ -82,13 +88,13 @@ class Offer(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), 
         nullable=False, 
-        default=datetime.utcnow
+        default=utcnow
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), 
         nullable=False, 
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=utcnow,
+        onupdate=utcnow
     )
     expires_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), 
@@ -116,12 +122,8 @@ class Offer(Base):
         """Valide que les valeurs numériques sont positives."""
         if value is not None and not validate_positive_decimal(value):
             raise ValueError(f"{key} doit être positif: {value}")
-        return value
-    
-    @validates('quantity')
-    def validate_quantity_available(self, key: str, value: Decimal) -> Decimal:
-        """Valide que la quantité demandée ne dépasse pas la disponibilité."""
-        # Cette validation sera faite au niveau du service, car dépend du listing
+        # NB: la quantité demandée vs la disponibilité de l'annonce est
+        # vérifiée au niveau du service (endpoint), car elle dépend du listing.
         return value
     
     # Propriétés hybrides
@@ -167,7 +169,7 @@ class Offer(Base):
         self.status = 'counter_offer'
         self.counter_offer_price = price
         self.counter_offer_quantity = quantity
-        self.updated_at = datetime.utcnow()
+        self.updated_at = utcnow()
 
 # Event listener pour expiration automatique
 @event.listens_for(Offer, 'before_insert')
@@ -176,4 +178,4 @@ def set_expiration(mapper, connection, target: Offer) -> None:
     """Définit une date d'expiration automatique si non définie."""
     if target.expires_at is None:
         from datetime import timedelta
-        target.expires_at = datetime.utcnow() + timedelta(days=7)
+        target.expires_at = utcnow() + timedelta(days=7)
