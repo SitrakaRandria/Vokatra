@@ -60,3 +60,36 @@ def validate_body(schema: Type[BaseModel]):
             except json.JSONDecodeError:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Corps de la requête invalide"
+                )
+        return wrapper
+    return decorator
+
+def sanitize_input(text: str) -> str:
+    """Sanitize les entrées utilisateur."""
+    if not text:
+        return text
+    # Échapper les caractères HTML
+    import html
+    text = html.escape(text)
+    # Limiter la longueur
+    if len(text) > 2000:
+        text = text[:2000]
+    return text
+
+def sanitize_dict(data: dict) -> dict:
+    """Sanitize toutes les chaînes de caractères dans un dictionnaire."""
+    sanitized = {}
+    for key, value in data.items():
+        if isinstance(value, str):
+            sanitized[key] = sanitize_input(value)
+        elif isinstance(value, dict):
+            sanitized[key] = sanitize_dict(value)
+        elif isinstance(value, list):
+            sanitized[key] = [
+                sanitize_input(item) if isinstance(item, str) else item
+                for item in value
+            ]
+        else:
+            sanitized[key] = value
+    return sanitized
