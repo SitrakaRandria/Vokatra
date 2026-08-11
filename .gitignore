@@ -1,0 +1,107 @@
+# .gitignore (à la racine du projet)
+
+# Global ignores
+.DS_Store
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.iml
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.local.example
+
+# Node modules (backup)
+node_modules/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup files
+*.backup
+*.bak
+*.old
+*.orig
+
+# Archives
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Secrets
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets/
+.secrets/
+
+# Deployment
+*.deploy
+*.deployment
+
+# Railway
+railway.json
+railway.toml
+
+# Vercel
+.vercel/
+
+# Docker
+*.dockerignore
+!Dockerfile
+
+# Documentation generated
+docs/_build/
+docs/api/
+
+# Coverage
+coverage/
+htmlcov/
+
+# Test reports
+test-reports/
+junit.xml
+
+# Temporary files
+tmp/
+temp/
+.cache/
+
+# Environment specific
+*.local
+*.development
+*.production
+*.staging
+
+# OS generated
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Misc
+*.pid
+*.seed
+*.pid.lock
