@@ -1,4 +1,3 @@
-// railway.json (à la racine du projet)
 {
   "build": {
     "builder": "NIXPACKS",
