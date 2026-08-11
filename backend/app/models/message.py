@@ -1,12 +1,13 @@
 """
 Modèle Message pour les échanges dans une conversation.
 """
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 from datetime import datetime
 from sqlalchemy import Integer, DateTime, Text, ForeignKey, Index, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.utils.time import utcnow
 
 if TYPE_CHECKING:
     from app.models.user import User
@@ -27,7 +28,7 @@ class Message(Base):
     sender_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 
     # Relations
     conversation: Mapped["Conversation"] = relationship("Conversation", back_populates="messages")

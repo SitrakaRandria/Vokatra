@@ -7,13 +7,14 @@ from decimal import Decimal
 
 from sqlalchemy import (
     String, Integer, DateTime, Boolean, Numeric, Text, JSON,
-    Index, CheckConstraint, Enum, event, and_, or_
+    Index, CheckConstraint, Enum, ForeignKey, event
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 from sqlalchemy.ext.hybrid import hybrid_property
 
 from app.core.database import Base
 from app.utils.validators import validate_positive_decimal
+from app.utils.time import utcnow
 
 if TYPE_CHECKING:
     from app.models.user import User
@@ -43,6 +44,7 @@ class Listing(Base):
     # Référence à l'utilisateur
     user_id: Mapped[int] = mapped_column(
         Integer, 
+        ForeignKey("users.id"),
         nullable=False, 
         index=True,
         doc="ID du vendeur"
@@ -107,7 +109,7 @@ class Listing(Base):
     availability_date: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), 
         nullable=False,
-        default=datetime.utcnow
+        default=utcnow
     )
     
     # Statut
@@ -122,13 +124,13 @@ class Listing(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), 
         nullable=False, 
-        default=datetime.utcnow
+        default=utcnow
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), 
         nullable=False, 
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=utcnow,
+        onupdate=utcnow
     )
     
     # Relations
@@ -152,18 +154,30 @@ class Listing(Base):
     )
     
     # Validations
-    @validates('total_quantity', 'available_quantity', 'price')
+    @validates('total_quantity', 'price')
     def validate_positive_numbers(self, key: str, value: Decimal) -> Decimal:
-        """Valide que les quantités et prix sont positifs."""
+        """Valide que les quantités totales et prix sont strictement positifs."""
         if not validate_positive_decimal(value):
             raise ValueError(f"{key} doit être positif: {value}")
         return value
-    
+
     @validates('available_quantity')
     def validate_available_quantity(self, key: str, value: Decimal) -> Decimal:
-        """Valide que la quantité disponible ne dépasse pas la quantité totale."""
+        """
+        Valide la quantité disponible : non négative et <= quantité totale.
+
+        ``available_quantity`` peut légitimement tomber à 0 quand l'annonce
+        est entièrement vendue — on n'exige donc pas > 0 ici.
+        """
+        from app.utils.validators import validate_non_negative_decimal
+
+        if not validate_non_negative_decimal(value):
+            raise ValueError(f"{key} doit être non négatif: {value}")
         if hasattr(self, 'total_quantity') and value > self.total_quantity:
-            raise ValueError(f"La quantité disponible ({value}) ne peut pas dépasser la quantité totale ({self.total_quantity})")
+            raise ValueError(
+                f"La quantité disponible ({value}) ne peut pas dépasser "
+                f"la quantité totale ({self.total_quantity})"
+            )
         return value
     
     # Propriétés hybrides

@@ -2,8 +2,8 @@
 Gestionnaire des connexions WebSocket actives avec authentification.
 """
 import asyncio
-from typing import Dict, Set, Optional
-from fastapi import WebSocket, WebSocketDisconnect
+from typing import Dict, Set
+from fastapi import WebSocket
 import json
 import logging
 

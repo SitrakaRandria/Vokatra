@@ -11,8 +11,8 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
     AsyncEngine
 )
-from sqlalchemy.orm import declarative_base, sessionmaker
-from sqlalchemy import event, exc
+from sqlalchemy.orm import declarative_base
+from sqlalchemy import exc
 from sqlalchemy.pool import NullPool
 
 from app.config import settings

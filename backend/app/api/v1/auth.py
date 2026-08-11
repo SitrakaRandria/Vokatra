@@ -8,8 +8,10 @@ from sqlalchemy import select
 from datetime import timedelta
 import logging
 
+from app.config import settings
 from app.core.database import get_db_session
 from app.core.auth import create_access_token, verify_password, get_password_hash
+from app.utils.time import utcnow
 from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse, UserWithToken
 from app.utils.validators import validate_phone_madagascar
@@ -124,7 +126,7 @@ async def login(
         )
         
         # Mise à jour de last_active
-        user.last_active_at = datetime.utcnow()
+        user.last_active_at = utcnow()
         await session.commit()
         
         logger.info(f"Connexion réussie pour {user.phone}")

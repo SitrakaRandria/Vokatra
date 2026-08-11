@@ -6,7 +6,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import (
-    String, Integer, Enum, DateTime, Boolean, Numeric, Text, 
+    String, Integer, Enum, DateTime, Boolean, Numeric, JSON,
     UniqueConstraint, Index, CheckConstraint, event
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
@@ -14,6 +14,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 
 from app.core.database import Base
 from app.utils.validators import validate_phone_madagascar
+from app.utils.time import utcnow
 
 if TYPE_CHECKING:
     from app.models.listing import Listing
@@ -72,9 +73,16 @@ class User(Base):
         default='base'
     )
     verification_documents: Mapped[Optional[dict]] = mapped_column(
-        type_=dict,  # Stockage JSON
+        JSON,  # Stockage JSON
         nullable=True,
         doc="Documents de vérification: CIN_url, NIF, carte_stat_url"
+    )
+
+    # Authentification
+    hashed_password: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        doc="Mot de passe haché (bcrypt)"
     )
     
     # Profil et réputation
@@ -94,13 +102,13 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), 
         nullable=False, 
-        default=datetime.utcnow
+        default=utcnow
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), 
         nullable=False, 
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=utcnow,
+        onupdate=utcnow
     )
     last_active_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), 
@@ -124,8 +132,11 @@ class User(Base):
     
     offers_received: Mapped[List["Offer"]] = relationship(
         "Offer",
-        foreign_keys="Offer.listing_id",  # Note: ce n'est pas un foreign key direct à User, mais à Listing
-        viewonly=True  # Relation en lecture seule via listing
+        secondary="listings",
+        primaryjoin="User.id == Listing.user_id",
+        secondaryjoin="Listing.id == Offer.listing_id",
+        viewonly=True,  # Relation en lecture seule via listing
+        lazy="selectin",
     )
     
     orders_as_buyer: Mapped[List["Order"]] = relationship(
@@ -188,7 +199,7 @@ class User(Base):
     @validates('rating')
     def validate_rating(self, key: str, rating: float) -> float:
         """Valide que la note est entre 0 et 5."""
-        if rating < 0 or rating > 5:
+        if rating is not None and (rating < 0 or rating > 5):
             raise ValueError(f"La note doit être entre 0 et 5: {rating}")
         return rating
     
@@ -215,7 +226,7 @@ class User(Base):
         """
         return self.account_type == 'professional' and self.verification_status == 'verified'
     
-    def update_rating(self, new_rating: float) -> None:
+    def update_rating(self, new_rating: Decimal) -> None:
         """
         Met à jour la note moyenne de l'utilisateur avec gestion d'erreur.
         
@@ -229,8 +240,10 @@ class User(Base):
             raise ValueError(f"Note invalide: {new_rating}")
         
         # Calcul de la nouvelle moyenne
-        current_total = self.rating * self.total_transactions if self.total_transactions > 0 else 0
-        self.total_transactions += 1
+        current_rating = self.rating if self.rating is not None else Decimal('0')
+        current_count = self.total_transactions if self.total_transactions is not None else 0
+        current_total = current_rating * current_count if current_count > 0 else Decimal('0')
+        self.total_transactions = current_count + 1
         # Protection contre division par zéro
         self.rating = (current_total + new_rating) / self.total_transactions
 
@@ -239,12 +252,11 @@ class User(Base):
 @event.listens_for(User, 'before_update')
 def validate_user(mapper, connection, target: User) -> None:
     """Validation automatique avant insertion/mise à jour."""
-    if target.rating < 0 or target.rating > 5:
+    if target.rating is not None and (target.rating < 0 or target.rating > 5):
         raise ValueError(f"Rating invalide: {target.rating}")
     
     # Vérification que les documents de vérification sont cohérents
     if target.verification_status == 'verified' and not target.verification_documents:
         raise ValueError("Un utilisateur vérifié doit avoir des documents de vérification")
 
-# Ajouter ce champ
-hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+

@@ -1,9 +1,9 @@
 """
 Fonctions d'authentification JWT avec gestion d'erreurs robuste.
 """
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Optional, Dict, Any
-from jose import JWTError, jwt
+from jose import jwt
 from fastapi import HTTPException, status, Depends
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +13,7 @@ from passlib.context import CryptContext
 from app.config import settings
 from app.models.user import User
 from app.core.database import get_db_session
+from app.utils.time import utcnow
 import logging
 
 logger = logging.getLogger(__name__)
@@ -37,7 +38,7 @@ def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta]
         raise ValueError("La clé 'sub' est requise dans les données du token")
     
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=settings.JWT_EXPIRATION_MINUTES))
+    expire = utcnow() + (expires_delta or timedelta(minutes=settings.JWT_EXPIRATION_MINUTES))
     to_encode.update({"exp": expire})
     
     try:
@@ -158,7 +159,10 @@ def get_password_hash(password: str) -> str:
     Hash un mot de passe avec bcrypt.
     """
     try:
-        return pwd_context.hash(password)
+        # bcrypt limite la longueur à 72 octets : on tronque explicitement
+        # (conformément à la recommandation OWASP) plutôt que de laisser
+        # l'erreur remonter de manière opaque.
+        return pwd_context.hash(password[:72])
     except Exception as e:
         logger.error(f"Erreur lors du hachage du mot de passe: {str(e)}")
         raise RuntimeError("Erreur interne lors du hachage du mot de passe")

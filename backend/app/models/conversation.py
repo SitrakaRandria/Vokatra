@@ -1,12 +1,13 @@
 """
 Modèle Conversation pour les discussions entre deux utilisateurs.
 """
-from typing import Optional, List, TYPE_CHECKING
+from typing import List, TYPE_CHECKING
 from datetime import datetime
 from sqlalchemy import Integer, DateTime, ForeignKey, Index, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.utils.time import utcnow
 
 if TYPE_CHECKING:
     from app.models.user import User
@@ -26,8 +27,8 @@ class Conversation(Base):
     user1_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     user2_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
 
     # Relations
     user1: Mapped["User"] = relationship("User", foreign_keys=[user1_id], lazy="selectin")

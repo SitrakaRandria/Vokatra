@@ -1,22 +1,22 @@
 """
 Endpoints CRUD pour les annonces avec gestion de saisonnalité automatique.
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, or_, desc, asc
-from typing import Optional, List
-from datetime import datetime
+from sqlalchemy import select, desc, asc
+from typing import List
 import logging
 
 from app.core.database import get_db_session
 from app.core.auth import get_current_user
 from app.core.seasonality import compute_seasonality_badge
+from app.utils.time import utcnow
 from app.models.user import User
 from app.models.listing import Listing
 from app.schemas.listing import (
     ListingCreate, ListingUpdate, ListingResponse, ListingFilterParams
 )
-from fastapi import File, UploadFile, HTTPException
+from fastapi import File, UploadFile
 from app.utils.cloudinary import upload_multiple_images
 
 logger = logging.getLogger(__name__)
@@ -47,8 +47,8 @@ async def create_listing(
     """
     try:
         # Vérification des données de saisonnalité
-        current_month = datetime.utcnow().month
-        is_in_season = compute_seasonality_badge(
+        current_month = utcnow().month
+        is_in_season = await compute_seasonality_badge(
             product=listing_data.product,
             region=listing_data.region,
             current_month=current_month,
@@ -127,7 +127,11 @@ async def get_listings(
             query = query.join(Listing.user).where(User.role == filters.user_role)
         
         # Tri
-        sort_field = getattr(Listing, filters.sort_by, Listing.created_at)
+        sort_field = (
+            getattr(Listing, filters.sort_by)
+            if filters.sort_by is not None
+            else Listing.created_at
+        )
         if filters.sort_order == "asc":
             query = query.order_by(asc(sort_field))
         else:
@@ -220,15 +224,15 @@ async def update_listing(
         
         # Recalcul de la saisonnalité si produit ou région changent
         if 'product' in update_dict or 'region' in update_dict:
-            current_month = datetime.utcnow().month
-            listing.is_in_season = compute_seasonality_badge(
+            current_month = utcnow().month
+            listing.is_in_season = await compute_seasonality_badge(
                 product=listing.product,
                 region=listing.region,
                 current_month=current_month,
                 session=session
             )
         
-        listing.updated_at = datetime.utcnow()
+        listing.updated_at = utcnow()
         await session.commit()
         await session.refresh(listing)
         await session.refresh(listing, attribute_names=['user'])

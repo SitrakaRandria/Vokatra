@@ -22,10 +22,20 @@ def validate_phone_madagascar(phone: str) -> bool:
     
     # Nettoie le numéro
     clean_phone = re.sub(r'[+\s-]', '', phone)
+    if not clean_phone:
+        return False
+    
+    # Accepte les formats +261XXXXXXXXX, 261XXXXXXXXX et 0XXXXXXXXX
+    if clean_phone.startswith('0'):
+        clean_phone = f"261{clean_phone[1:]}"
+    elif clean_phone.startswith('261'):
+        clean_phone = clean_phone
+    else:
+        return False
     
     # Vérifie le format
-    pattern = r'^\+261(20|30|32|33|34|38|39)\d{7}$'
-    return bool(re.match(pattern, phone))
+    pattern = r'^261(20|30|32|33|34|38|39)\d{7}$'
+    return bool(re.match(pattern, clean_phone))
 
 def validate_positive_decimal(value: Decimal) -> bool:
     """
@@ -80,10 +90,6 @@ def normalize_phone(phone: str) -> Optional[str]:
     # Si le numéro commence par 261, ajoute +
     if clean.startswith('261'):
         return f"+{clean}"
-    
-    # Si déjà au format +261
-    if clean.startswith('+261'):
-        return clean
     
     return None
 

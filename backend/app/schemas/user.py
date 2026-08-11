@@ -1,10 +1,10 @@
 """
 Schémas Pydantic pour le modèle User avec validation stricte.
 """
-from typing import Optional, List, Dict, Any
+from typing import Optional
 from datetime import datetime
 from decimal import Decimal
-from pydantic import BaseModel, Field, field_validator, EmailStr, ConfigDict
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from pydantic.types import StringConstraints
 from typing_extensions import Annotated
 

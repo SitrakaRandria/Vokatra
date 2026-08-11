@@ -1,18 +1,19 @@
 """
 Point d'entrée FastAPI avec gestion d'erreurs globale et CORS.
 """
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy.exc import SQLAlchemyError
 import logging
-from datetime import datetime
 
 from app.config import settings
-from app.api.v1 import auth, listings, offers, transporters
+from app.api.v1 import auth, listings, offers, transporters, invoices, price_history
 from app.api.websocket import chat
 from app.core.database import db_manager
+from app.utils.time import utcnow
 
 # Configuration du logging
 logging.basicConfig(
@@ -21,13 +22,27 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialisation et nettoyage des ressources au démarrage/arrêt."""
+    logger.info("Démarrage de l'application Vokatra")
+    try:
+        await db_manager.initialize()
+        logger.info("Base de données initialisée avec succès")
+    except Exception as e:
+        logger.critical(f"Échec de l'initialisation de la DB: {str(e)}")
+        raise
+    yield
+    logger.info("Arrêt de l'application Vokatra")
+
 # Création de l'application
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.VERSION,
     description="API Vokatra - Plateforme agricole Madagascar",
     docs_url="/api/docs" if settings.DEBUG else None,
-    redoc_url="/api/redoc" if settings.DEBUG else None
+    redoc_url="/api/redoc" if settings.DEBUG else None,
+    lifespan=lifespan
 )
 
 # Configuration CORS
@@ -52,7 +67,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         })
     logger.warning(f"Erreur de validation: {errors}")
     return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         content={"detail": "Erreur de validation", "errors": errors}
     )
 
@@ -79,25 +94,9 @@ app.include_router(auth.router, prefix="/api/v1")
 app.include_router(listings.router, prefix="/api/v1")
 app.include_router(offers.router, prefix="/api/v1")
 app.include_router(transporters.router, prefix="/api/v1")
+app.include_router(invoices.router, prefix="/api/v1")
+app.include_router(price_history.router, prefix="/api/v1")
 app.include_router(chat.router, prefix="/api/v1")  # WebSocket
-
-# Événements de démarrage/arrêt
-@app.on_event("startup")
-async def startup():
-    """Initialisation au démarrage."""
-    logger.info("Démarrage de l'application Vokatra")
-    try:
-        await db_manager.initialize()
-        logger.info("Base de données initialisée avec succès")
-    except Exception as e:
-        logger.critical(f"Échec de l'initialisation de la DB: {str(e)}")
-        raise
-
-@app.on_event("shutdown")
-async def shutdown():
-    """Nettoyage à l'arrêt."""
-    logger.info("Arrêt de l'application Vokatra")
-    # Fermeture des connexions DB si nécessaire
 
 # Route de santé
 @app.get("/health", tags=["health"])
@@ -106,5 +105,5 @@ async def health_check():
     return {
         "status": "healthy",
         "version": settings.VERSION,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": utcnow().isoformat()
     }
