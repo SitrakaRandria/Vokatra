@@ -16,9 +16,24 @@ from app.models.listing import Listing
 from app.schemas.listing import (
     ListingCreate, ListingUpdate, ListingResponse, ListingFilterParams
 )
+from fastapi import File, UploadFile, HTTPException
+from app.utils.cloudinary import upload_multiple_images
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/listings", tags=["listings"])
+
+@router.post("/upload-photos", response_model=List[str])
+async def upload_photos(
+    files: List[UploadFile] = File(...),
+    current_user: User = Depends(get_current_user)
+):
+    if len(files) > 5:
+        raise HTTPException(400, "Maximum 5 photos")
+    file_bytes = [await f.read() for f in files]
+    urls = await upload_multiple_images(file_bytes, folder=f"users/{current_user.id}/listings")
+    if not urls:
+        raise HTTPException(500, "Erreur lors de l'upload")
+    return urls
 
 @router.post("/", response_model=ListingResponse, status_code=status.HTTP_201_CREATED)
 async def create_listing(
