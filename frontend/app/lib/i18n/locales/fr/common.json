@@ -1,0 +1,25 @@
+{
+  "nav": {
+    "listings": "Annonces",
+    "transporters": "Transporteurs",
+    "offers": "Mes offres",
+    "profile": "Profil",
+    "login": "Se connecter"
+  },
+  "auth": {
+    "login": "Se connecter",
+    "register": "S'inscrire",
+    "logout": "Se déconnecter"
+  },
+  "hero": {
+    "title": "Bienvenue sur Vokatra",
+    "subtitle": "La plateforme agricole de Madagascar pour connecter producteurs et acheteurs",
+    "cta": {
+      "browse": "Parcourir les annonces",
+      "sell": "Vendre mes produits"
+    }
+  },
+  "home": {
+    "recent_listings": "Annonces récentes"
+  }
+}
