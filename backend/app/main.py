@@ -1,6 +1,5 @@
-"""
-Point d'entrée FastAPI avec gestion d'erreurs globale et CORS.
-"""
+# backend/app/main.py
+
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,9 +9,12 @@ import logging
 from datetime import datetime
 
 from app.config import settings
-from app.api.v1 import auth, listings, offers, transporters
+from app.api.v1 import auth, listings, offers, transporters, notifications
 from app.api.websocket import chat
 from app.core.database import db_manager
+from app.middleware.rate_limit import RateLimitMiddleware
+from app.middleware.audit import AuditMiddleware
+from app.middleware.csrf import CSRFMiddleware
 
 # Configuration du logging
 logging.basicConfig(
@@ -39,10 +41,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Gestionnaires d'erreurs globaux
+# Ajout des middlewares de sécurité
+app.add_middleware(RateLimitMiddleware)
+app.add_middleware(CSRFMiddleware)
+app.add_middleware(AuditMiddleware)
+
+# Gestionnaires d'erreurs
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    """Gestion des erreurs de validation Pydantic."""
     errors = []
     for error in exc.errors():
         errors.append({
@@ -58,7 +64,6 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(SQLAlchemyError)
 async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
-    """Gestion des erreurs SQLAlchemy."""
     logger.error(f"Erreur SQLAlchemy: {str(exc)}")
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -67,7 +72,6 @@ async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
 
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
-    """Gestion des erreurs génériques."""
     logger.error(f"Erreur non gérée: {str(exc)}", exc_info=True)
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -79,32 +83,38 @@ app.include_router(auth.router, prefix="/api/v1")
 app.include_router(listings.router, prefix="/api/v1")
 app.include_router(offers.router, prefix="/api/v1")
 app.include_router(transporters.router, prefix="/api/v1")
-app.include_router(chat.router, prefix="/api/v1")  # WebSocket
+app.include_router(notifications.router, prefix="/api/v1")
+app.include_router(chat.router, prefix="/api/v1")
 
 # Événements de démarrage/arrêt
 @app.on_event("startup")
 async def startup():
-    """Initialisation au démarrage."""
-    logger.info("Démarrage de l'application Vokatra")
+    logger.info("🚀 Démarrage de l'application Vokatra")
     try:
         await db_manager.initialize()
-        logger.info("Base de données initialisée avec succès")
+        logger.info("✅ Base de données initialisée avec succès")
     except Exception as e:
-        logger.critical(f"Échec de l'initialisation de la DB: {str(e)}")
+        logger.critical(f"❌ Échec de l'initialisation de la DB: {str(e)}")
         raise
 
 @app.on_event("shutdown")
 async def shutdown():
-    """Nettoyage à l'arrêt."""
-    logger.info("Arrêt de l'application Vokatra")
-    # Fermeture des connexions DB si nécessaire
+    logger.info("🛑 Arrêt de l'application Vokatra")
 
 # Route de santé
 @app.get("/health", tags=["health"])
 async def health_check():
-    """Vérification de l'état de l'API."""
     return {
         "status": "healthy",
         "version": settings.VERSION,
         "timestamp": datetime.utcnow().isoformat()
+    }
+
+# Route racine
+@app.get("/")
+async def root():
+    return {
+        "message": "Bienvenue sur l'API Vokatra",
+        "version": settings.VERSION,
+        "docs": "/api/docs" if settings.DEBUG else None
     }
