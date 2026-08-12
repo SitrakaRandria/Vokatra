@@ -13,7 +13,12 @@ class TransporterProfile(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
 
-    coverage_region: Mapped[List[str]] = mapped_column(JSON, nullable=False, default=list)
+    # ❌ À corriger
+coverage_region: Mapped[List[str]] = mapped_column(
+    JSON,  # ✅ C'est déjà correct
+    nullable=False,
+    default=list
+)
     vehicle_type: Mapped[str] = mapped_column(String(50), nullable=False)
     capacity_kg: Mapped[int] = mapped_column(Integer, nullable=False)
     base_rate: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
