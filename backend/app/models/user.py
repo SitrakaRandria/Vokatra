@@ -7,7 +7,7 @@ from decimal import Decimal
 
 from sqlalchemy import (
     String, Integer, Enum, DateTime, Boolean, Numeric, Text, 
-    UniqueConstraint, Index, CheckConstraint, event
+    UniqueConstraint, Index, CheckConstraint, event,JSON
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 from sqlalchemy.ext.hybrid import hybrid_property
