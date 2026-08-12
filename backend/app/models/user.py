@@ -11,6 +11,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy import JSON
+
 
 from app.core.database import Base
 from app.utils.validators import validate_phone_madagascar
@@ -71,10 +73,11 @@ class User(Base):
         nullable=False,
         default='base'
     )
-    verification_documents: Mapped[Optional[dict]] = mapped_column(
-        type_=dict,  # Stockage JSON
-        nullable=True,
-        doc="Documents de vérification: CIN_url, NIF, carte_stat_url"
+# ✅ NOUVEAU CODE (corrigé)
+verification_documents: Mapped[Optional[dict]] = mapped_column(
+    JSON,  # ✅ Utiliser JSON au lieu de dict
+    nullable=True,
+    doc="Documents de vérification: CIN_url, NIF, carte_stat_url"
     )
     
     # Profil et réputation
