@@ -81,11 +81,12 @@ class Listing(Base):
     )
     
     # Photos
-    photos: Mapped[Optional[List[str]]] = mapped_column(
-        JSON, 
-        nullable=True,
-        default=list,
-        doc="URLs des photos Cloudinary"
+    # ❌ À corriger
+photos: Mapped[Optional[List[str]]] = mapped_column(
+    JSON,  # ✅ C'est déjà correct
+    nullable=True,
+    default=list
+)
     )
     
     # Localisation
